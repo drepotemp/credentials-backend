@@ -36,10 +36,24 @@ export async function handleText(ctx) {
   if (STRATEGY_BUTTONS.includes(text)) {
     const user = await User.findOne({ telegramId: String(ctx.from.id) });
     if (!user || user.status !== 'approved') {
-      return ctx.reply(
+      await ctx.reply(
         'Please register first. After completing registration, click this button again to access the feature.',
         mainMenu()
       );
+
+      const session = getSession(ctx.from.id);
+      if (session) {
+        if (session.step === 'awaiting_email') {
+          return ctx.reply('Send me your email address', mainMenu());
+        }
+        if (session.step === 'awaiting_password') {
+          return ctx.reply('Send me your account password', mainMenu());
+        }
+        if (session.step === 'awaiting_code') {
+          return ctx.reply('Send me the verification code', mainMenu());
+        }
+      }
+      return;
     }
     // Features for approved users could go here
     return;
