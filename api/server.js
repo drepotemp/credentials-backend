@@ -86,6 +86,23 @@ export function createServer({ bot } = {}) {
       if (!STATUSES.includes(status)) return res.status(400).json({ error: 'Invalid status.' });
       const user = await User.findByIdAndUpdate(req.params.id, { status }, { new: true }).lean();
       if (!user) return res.status(404).json({ error: 'User not found.' });
+
+      // Notify user on status change
+      if (bot && user.telegramId) {
+        let msg = '';
+        if (status === 'approved') {
+          msg = '✅ Your registration has been approved! You can now access all trading features.';
+        } else if (status === 'rejected') {
+          msg = '❌ Your registration was rejected. You can restart the registration process by sending /start.';
+        }
+
+        if (msg) {
+          bot.telegram.sendMessage(user.telegramId, msg).catch((err) => {
+            log.error(`Failed to notify user ${user.telegramId}: ${formatError(err)}`);
+          });
+        }
+      }
+
       res.json({ user: publicUser(user) });
     } catch (err) {
       next(err);

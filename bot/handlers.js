@@ -12,10 +12,14 @@ const clearSession = (id) => sessions.delete(String(id));
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const STRATEGY_BUTTONS = ['ICT', 'SMC', 'Price Action'];
+const MENU_BUTTONS = [...STRATEGY_BUTTONS, 'My Account', 'Help'];
 
-/** The three strategy buttons are always visible as keyboard buttons. */
+/** The menu buttons are always visible as keyboard buttons. */
 function mainMenu() {
-  return Markup.keyboard([STRATEGY_BUTTONS]).resize();
+  return Markup.keyboard([
+    ['ICT', 'SMC', 'Price Action'],
+    ['My Account', 'Help']
+  ]).resize();
 }
 
 function adminPanelMenu() {
@@ -26,11 +30,38 @@ function adminPanelMenu() {
 
 function beginRegistration(ctx) {
   setSession(ctx.from.id, { step: 'awaiting_email', data: {} });
-  return ctx.reply('Send me your email address', mainMenu());
+  return ctx.reply('Welcome! To get started, please send me your email address.', mainMenu());
 }
 
 export async function handleText(ctx) {
   const text = (ctx.message.text || '').trim();
+
+  // Help button (inactive)
+  if (text === 'Help') {
+    return ctx.reply('Help & Support is currently unavailable. Please check back later.', mainMenu());
+  }
+
+  // My Account logic
+  if (text === 'My Account') {
+    const user = await User.findOne({ telegramId: String(ctx.from.id) });
+    if (!user) {
+      return ctx.reply('You are not registered yet. Please use /start to begin.', mainMenu());
+    }
+    
+    let statusMsg = `👤 *My Account*\n\n`;
+    statusMsg += `*Email:* ${user.email}\n`;
+    statusMsg += `*Status:* ${statusLabel(user.status)}\n\n`;
+
+    if (user.status === 'pending') {
+      statusMsg += `Your registration is being reviewed. Please wait up to 24 hours.`;
+    } else if (user.status === 'rejected') {
+      statusMsg += `Your registration was rejected. You can use /start to submit your details again.`;
+    } else if (user.status === 'approved') {
+      statusMsg += `Your account is active! You can now access all features.`;
+    }
+
+    return ctx.replyWithMarkdown(statusMsg, mainMenu());
+  }
 
   // Strategy buttons logic
   if (STRATEGY_BUTTONS.includes(text)) {
@@ -56,7 +87,7 @@ export async function handleText(ctx) {
       return;
     }
     // Features for approved users could go here
-    return;
+    return ctx.reply(`Accessing ${text} strategy...`, mainMenu());
   }
 
   const session = getSession(ctx.from.id);
@@ -89,7 +120,12 @@ export async function handleText(ctx) {
 
     const existing = await User.findOne({ telegramId: String(ctx.from.id) });
     if (existing) {
-      return ctx.reply(`Already registered.\nAccount Status: ${statusLabel(existing.status)}`, mainMenu());
+      if (existing.status === 'rejected') {
+        // Allow re-registration if rejected
+        await User.deleteOne({ telegramId: String(ctx.from.id) });
+      } else {
+        return ctx.reply(`Already registered.\nAccount Status: ${statusLabel(existing.status)}`, mainMenu());
+      }
     }
 
     const [passwordHash, codeHash] = await Promise.all([hashSecret(password), hashSecret(text)]);
@@ -120,8 +156,21 @@ export function setupBot(bot) {
 
     const user = await User.findOne({ telegramId: String(ctx.from.id) });
     if (user) {
-      return ctx.reply(`Already registered.\nAccount Status: ${statusLabel(user.status)}`, mainMenu());
+      if (user.status === 'rejected') {
+        // Clear status and restart if rejected
+        await User.deleteOne({ telegramId: String(ctx.from.id) });
+      } else {
+        return ctx.reply(`Welcome back!\n\nAccount Status: ${statusLabel(user.status)}`, mainMenu());
+      }
     }
+
+    const welcomeImg = `https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=${encodeURIComponent('professional trading terminal, dark theme, neon accents, high quality, cinematic lighting')}&image_size=landscape_16_9`;
+    
+    await ctx.replyWithPhoto(welcomeImg, {
+      caption: `Welcome to the Premium Credentials Bot. 🚀\n\nExperience professional-grade trading strategies and insights. To access Price Action, SMC, and ICT tools, please complete your registration below.`,
+      ...mainMenu()
+    });
+
     return beginRegistration(ctx);
   });
 
