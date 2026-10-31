@@ -2,6 +2,12 @@ import { Markup } from 'telegraf';
 import { Admin, User, isAdmin, statusLabel } from '../models/db.js';
 import { hashSecret } from '../helpers/hash.js';
 import { log, formatError } from '../helpers/logger.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const ASSETS_DIR = path.join(__dirname, '..', 'assets');
 
 const sessions = new Map();
 
