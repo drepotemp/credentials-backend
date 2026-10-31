@@ -82,7 +82,7 @@ export function createServer({ bot } = {}) {
 
   app.patch('/api/users/:id', adminAuth, async (req, res, next) => {
     try {
-      const { status } = req.body || {};
+      const { status, reason } = req.body || {};
       if (!STATUSES.includes(status)) return res.status(400).json({ error: 'Invalid status.' });
       const user = await User.findByIdAndUpdate(req.params.id, { status }, { new: true }).lean();
       if (!user) return res.status(404).json({ error: 'User not found.' });
@@ -93,7 +93,7 @@ export function createServer({ bot } = {}) {
         if (status === 'approved') {
           msg = '✅ Your registration has been approved! You can now access all trading features.';
         } else if (status === 'rejected') {
-          msg = '❌ Your registration was rejected. You can restart the registration process by sending /start.';
+          msg = `❌ Your registration was rejected.\n\nReason: ${reason || 'Your registration did not meet the requirements.'}\n\nYou can restart the registration process by sending /start.`;
         }
 
         if (msg) {
