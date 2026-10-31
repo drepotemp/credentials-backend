@@ -170,9 +170,9 @@ export function setupBot(bot) {
       }
     }
 
-    const welcomeImg = `https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=${encodeURIComponent('professional trading terminal, dark theme, neon accents, high quality, cinematic lighting')}&image_size=landscape_16_9`;
+    const welcomeImg = path.join(ASSETS_DIR, 'images', 'welcome.jpg');
     
-    await ctx.replyWithPhoto(welcomeImg, {
+    await ctx.replyWithPhoto({ source: welcomeImg }, {
       caption: `Welcome to the Premium Credentials Bot. 🚀\n\nExperience professional-grade trading strategies and insights. To access Price Action, SMC, and ICT tools, please complete your registration below.`,
       ...mainMenu()
     });
